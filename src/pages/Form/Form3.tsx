@@ -16,43 +16,37 @@ interface Data {
   message: string;
 }
 
-const Form: React.FC = () => {
+interface DataProps {
+  fetchedData: Data[];
+  status: number;
+  message?: string | null;
+}
+
+const Form: React.FC<DataProps> = ({ fetchedData, status, message }) => {
   const [Datas, setData] = useState<Data[]>([]);
   const [noDataMessage, setNoDataMessage] = useState<string | null>(null);
   const [notuserMessage, setNotUserMessage] = useState<string | null>(null);
   const [Disable, setDisable] = useState<boolean>(false);
+  const [topic, setTopic] = useState<string | null>(null);
   const { updateResponse } = useResponse();
   const route = useRouter();
   const inputref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (inputref.current) {
-      inputref.current.focus();
-    }
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://127.0.0.1:8080/fetch-data");
-        const data = await response.json();
-        const status = await response.status;
-        if (status === 200) {
-          setData(data);
-          setNoDataMessage(null);
-        } else {
-          if (status === 500) {
-            setNotUserMessage("Please try again");
-          } else {
-            setNoDataMessage(data.message);
-            setDisable(true);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setNoDataMessage("Please try again");
+    if (status === 200) {
+      setData(fetchedData);
+      setNoDataMessage(null);
+      setNotUserMessage(null);
+      setDisable(false);
+    } else {
+      if (status === 500) {
+        setNotUserMessage("Please try again");
+      } else {
+        setNoDataMessage(message || "No data available");
+        setDisable(true);
       }
-    };
-
-    fetchData();
-  }, []);
+    }
+  }, [status, fetchedData]);
 
   const [formData, setFormData] = useState<FormData>({
     empId: "",
@@ -73,6 +67,10 @@ const Form: React.FC = () => {
       ...formData,
       topicsSelected: updatedSubTopics,
     });
+
+    if (updatedSubTopics.length > 0) {
+      setTopic(null);
+    }
   };
 
   const getTextAreaValue = () => {
@@ -87,8 +85,13 @@ const Form: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (formData.topicsSelected.length === 0) {
+      setTopic("Please select at least one topic.");
+      return;
+    }
+
     try {
-      const response = await fetch("http://127.0.0.1:8080/add-user", {
+      const response = await fetch("http://172.168.168.239:8080/add-user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,7 +101,6 @@ const Form: React.FC = () => {
       const result = await response.json();
       const status = await response.status;
 
-      console.log(status);
       if (status === 200) {
         updateResponse(result);
         setNotUserMessage(null);
@@ -120,7 +122,6 @@ const Form: React.FC = () => {
     <div className="bg-black">
       <div className="relative flex items-center justify-between p-3 flex-col sm:flex-row">
         <img src="Logo 2.png" alt="Logo" className="h-32 w-auto mb-4 sm:mb-0" />
-
         <div className="flex-grow text-center md:mr-48">
           <h1 className="text-2xl sm:text-3xl font-semibold text-white">
             L&D Program - 2025
@@ -135,14 +136,14 @@ const Form: React.FC = () => {
         <div>
           <div className="p-5 max-w-4xl mx-auto ">
             {noDataMessage && (
-              <div className="mb-4 text-center text-red-400  text-4xl">
+              <div className="mb-4 text-center text-red-400 text-4xl">
                 <p>{noDataMessage}</p>
               </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-6  md:w-[50%] mx-auto w-[80%]">
+        <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-6 md:w-[50%] mx-auto w-[80%]">
           <form onSubmit={handleSubmit} className="space-y-6 ">
             <div className="mb-4">
               <label
@@ -273,7 +274,9 @@ const Form: React.FC = () => {
                 Submit
               </button>
             </div>
-
+            {topic && (
+              <div className="text-red-400 text-center text-sm">{topic}</div>
+            )}
             {notuserMessage && (
               <div className="mb-4 text-center text-red-400">
                 <p>{notuserMessage}</p>
